@@ -26,14 +26,27 @@ class VisitWithVisitors {
 
   factory VisitWithVisitors.fromJson(Map<String, dynamic> json) {
     final visitorsList = json['visitors'] as List<dynamic>? ?? [];
+    // Support both flat fields and nested objects for company/host.
+    String? parsedCompanyName;
+    if (json['company'] is Map<String, dynamic>) {
+      parsedCompanyName = (json['company']['company_name'] as String?)?.trim();
+    }
+    parsedCompanyName ??= json['company_name'] as String?;
+
+    String? parsedHostName;
+    if (json['host_user'] is Map<String, dynamic>) {
+      parsedHostName = (json['host_user']['username'] as String?)?.trim();
+    }
+    parsedHostName ??= json['host_name'] as String?;
+
     return VisitWithVisitors(
       visitId: (json['visit_id'] as num?)?.toInt() ?? 0,
       purposeOfVisit: json['purpose_of_visit'] as String?,
       visitorType: json['visitor_type'] as String?,
       visitorCount: (json['visitor_count'] as num?)?.toInt() ?? 0,
       centerName: (json['center_name'] as String?) ?? '',
-      companyName: json['company_name'] as String?,
-      hostName: json['host_name'] as String?,
+      companyName: parsedCompanyName,
+      hostName: parsedHostName,
       dateOfVisit: json['date_of_visit'] as String?,
       timeOfVisit: json['time_of_visit'] as String?,
       visitors: visitorsList
@@ -69,21 +82,29 @@ class VisitorInVisit {
   });
 
   factory VisitorInVisit.fromJson(Map<String, dynamic> json) {
+    final profile = json['profile'] is Map<String, dynamic>
+      ? json['profile'] as Map<String, dynamic>
+      : null;
+
     return VisitorInVisit(
       visitorId: (json['visitor_id'] as num?)?.toInt() ?? 0,
-      fullName: (json['full_name'] as String?) ?? '',
-      email: (json['email'] as String?) ?? '',
-      mobileNumber: (json['mobile_number'] as String?) ?? '',
+      fullName: (json['full_name'] as String?) ??
+        (profile?['full_name'] as String?) ?? '',
+      email: (json['email'] as String?) ?? (profile?['email'] as String?) ?? '',
+      mobileNumber: (json['mobile_number'] as String?) ??
+        (profile?['mobile_number'] as String?) ?? '',
       status: (json['status'] as String?) ?? '',
       checkInTime: json['check_in_time'] != null
-          ? DateTime.tryParse(json['check_in_time'] as String)
-          : null,
+        ? DateTime.tryParse(json['check_in_time'] as String)
+        : null,
       checkOutTime: json['check_out_time'] != null
-          ? DateTime.tryParse(json['check_out_time'] as String)
-          : null,
-      visitorImage: json['visitor_image'] as String?,
-      idProofType: json['id_proof_type'] as String?,
-      idProof: json['id_proof'] as String?,
+        ? DateTime.tryParse(json['check_out_time'] as String)
+        : null,
+      visitorImage:
+        (json['visitor_image'] as String?) ?? (profile?['image'] as String?),
+      idProofType: (json['id_proof_type'] as String?) ??
+        (profile?['id_proof_type'] as String?),
+      idProof: (json['id_proof'] as String?) ?? (profile?['id_proof'] as String?),
     );
   }
 

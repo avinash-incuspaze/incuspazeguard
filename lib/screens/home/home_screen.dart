@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
       page: 1,
       perPage: _perPage,
     );
+
     if (mounted) {
       setState(() {
         _pending = result.items;
@@ -51,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
       page: nextPage,
       perPage: _perPage,
     );
+
     if (mounted) {
       setState(() {
         _pending = [..._pending, ...result.items];

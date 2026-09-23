@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/visitor_request.dart';
 
@@ -14,9 +15,21 @@ class VisitorCard extends StatelessWidget {
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
 
-  /// Show Approve/Reject only for security_based; host_based is handled in host app.
-  bool get _showApproveReject =>
-      visitor.approvalMode == ApprovalMode.security_based;
+  /// Show Approve/Reject only when the approval status is pending.
+  ///
+  /// Buttons are visible for pending requests so the guard can approve
+  /// or reject them; approved/rejected entries will not show the actions.
+  bool get _showApproveReject {
+    final pending = visitor.approvalStatus?.toLowerCase() == 'requested';
+    final v = visitor.dateOfVisit;
+    final now = DateTime.now();
+    final visitDateOnly = v != null ? DateTime(v.year, v.month, v.day) : null;
+    final todayOnly = DateTime(now.year, now.month, now.day);
+
+    final visible = pending && (visitDateOnly == null ? true : visitDateOnly == todayOnly);
+    debugPrint('VisitorCard: id=${visitor.id} approvalStatus=${visitor.approvalStatus} dateOfVisit=${visitor.dateOfVisit} CurrentDate=${todayOnly} showApprove=$visible');
+    return visible;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +56,42 @@ class VisitorCard extends StatelessWidget {
                     const SizedBox(width: 8),
                   _ApprovalModeChip(mode: visitor.approvalMode!),
                 ],
+                const SizedBox(width: 8),
+                _statusLabel(visitor.approvalStatus ?? visitor.status.name),
               ],
             ),
             const SizedBox(height: 6),
+            if (visitor.visitId != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Visit ID: ${visitor.visitId}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                ),
+              ),
+            // Show visit date & time when available
+            if (visitor.dateOfVisit != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Visit: ${_formatVisitDateTime(visitor.dateOfVisit)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                ),
+              ),
+            if (visitor.id.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Visitor ID: ${visitor.id}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                ),
+              ),
             Row(
               children: [
                 const Icon(Icons.email_outlined, size: 18, color: Colors.grey),
@@ -69,6 +115,36 @@ class VisitorCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            if (visitor.hostName != null && visitor.hostName!.isNotEmpty)
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Host: ${visitor.hostName}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            if (visitor.hostCompanyName != null && visitor.hostCompanyName!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.business_outlined, size: 18, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Host company: ${visitor.hostCompanyName}',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (_showApproveReject) ...[
               const SizedBox(height: 12),
               Row(
@@ -116,5 +192,52 @@ class _ApprovalModeChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+String _prettyStatus(String raw) {
+  if (raw.isEmpty) return '—';
+  final s = raw.replaceAll('_', ' ');
+  return s[0].toUpperCase() + s.substring(1);
+}
+
+Widget _statusLabel(String raw) {
+  final s = raw.toLowerCase();
+  Color bg;
+  Color textColor;
+  if (s == 'pending' || s == 'requested') {
+    bg = Colors.orange.shade50;
+    textColor = Colors.orange.shade700;
+  } else if (s == 'accepted' || s == 'approved') {
+    bg = Colors.green.shade50;
+    textColor = Colors.green.shade700;
+  } else if (s == 'checked_out') {
+    bg = Colors.grey.shade200;
+    textColor = Colors.grey.shade700;
+  } else {
+    bg = Colors.blue.shade50;
+    textColor = Colors.blue.shade700;
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      _prettyStatus(raw),
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
+    ),
+  );
+}
+
+String _formatVisitDateTime(DateTime? dt) {
+  if (dt == null) return '—';
+  try {
+    final local = dt.toLocal();
+    return DateFormat('MMM d, yyyy • h:mm a').format(local);
+  } catch (_) {
+    return dt.toIso8601String();
   }
 }

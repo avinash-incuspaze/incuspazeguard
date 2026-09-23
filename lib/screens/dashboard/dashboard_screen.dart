@@ -43,6 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       page: 1,
       perPage: _perPage,
     );
+
     if (mounted) {
       setState(() {
         _pending = result.items;
@@ -61,6 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       page: nextPage,
       perPage: _perPage,
     );
+
     if (mounted) {
       setState(() {
         _pending = [..._pending, ...result.items];

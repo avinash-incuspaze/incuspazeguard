@@ -28,6 +28,7 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   final _visitorService = VisitorService();
   final List<_VisitorRow> _rowsCheckedIn = [];
   final List<_VisitorRow> _rowsCheckedOut = [];
+  final List<_VisitorRow> _rowsPending = [];
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   VisitorsPagination? _pagination;
@@ -38,10 +39,12 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   late TabController _tabController;
   final ScrollController _scrollControllerCheckedIn = ScrollController();
   final ScrollController _scrollControllerCheckedOut = ScrollController();
+  final ScrollController _scrollControllerPending = ScrollController();
   static const double _loadMoreScrollThreshold = 200;
 
   List<_VisitorRow> get _filteredCheckedIn => _filterRows(_rowsCheckedIn);
   List<_VisitorRow> get _filteredCheckedOut => _filterRows(_rowsCheckedOut);
+  List<_VisitorRow> get _filteredPending => _filterRows(_rowsPending);
 
   List<_VisitorRow> _filterRows(List<_VisitorRow> rows) {
     if (_searchQuery.trim().isEmpty) return rows;
@@ -74,10 +77,11 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadPage(1);
     _scrollControllerCheckedIn.addListener(_onScrollCheckedIn);
     _scrollControllerCheckedOut.addListener(_onScrollCheckedOut);
+    _scrollControllerPending.addListener(_onScrollPending);
   }
 
   @override
@@ -85,11 +89,15 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     _searchController.dispose();
     _scrollControllerCheckedIn.removeListener(_onScrollCheckedIn);
     _scrollControllerCheckedOut.removeListener(_onScrollCheckedOut);
+    _scrollControllerPending.removeListener(_onScrollPending);
     _scrollControllerCheckedIn.dispose();
     _scrollControllerCheckedOut.dispose();
+    _scrollControllerPending.dispose();
     _tabController.dispose();
     super.dispose();
   }
+
+  void _onScrollPending() => _onScroll(_scrollControllerPending);
 
   void _onScrollCheckedIn() => _onScroll(_scrollControllerCheckedIn);
   void _onScrollCheckedOut() => _onScroll(_scrollControllerCheckedOut);
@@ -125,19 +133,48 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
       if (page == 1) {
         _rowsCheckedIn.clear();
         _rowsCheckedOut.clear();
+        _rowsPending.clear();
       }
       for (final visit in result.data) {
         for (final visitor in visit.visitors) {
           final row = _VisitorRow(visit, visitor);
-          // Check-in tab: not yet checked out (pending or checked in).
-          // Checked-out tab: already checked out.
-          if (visitor.status != 'checked_out') {
-            _rowsCheckedIn.add(row);
-          } else {
-            _rowsCheckedOut.add(row);
+          // Normalize status and detect check-in via timestamps when possible.
+          final s = (visitor.status ?? '').toLowerCase();
+
+          final hasCheckIn = visitor.checkInTime != null;
+          final hasCheckOut = visitor.checkOutTime != null;
+
+          // Pending tab: only show explicit pre-check-in requests
+            // Include 'approved' and 'accepted' so pre-check-in approvals remain in Pending
+            final pendingStatuses = {'pending', 'requested', 'accepted', 'approved'};
+          if (pendingStatuses.contains(s)) {
+            _rowsPending.add(row);
+            continue;
           }
+
+          if (s == 'checked_out' || hasCheckOut) {
+            _rowsCheckedOut.add(row);
+            continue;
+          }
+
+          // Check-in tab: only visitors that are checked-in (status or timestamp)
+          if (s == 'checked_in' || hasCheckIn) {
+            _rowsCheckedIn.add(row);
+            continue;
+          }
+
+          // // Checked-out tab: only visitors that are checked-out (status or timestamp)
+          // if (s == 'checked_out' || hasCheckOut) {
+          //   _rowsCheckedOut.add(row);
+          //   continue;
+          // }
+
+          // All other statuses (e.g., accepted/approved/unknown) are intentionally
+          // not added to any tab to match the strict tab rules requested.
         }
       }
+
+      debugPrint('VisitorsList: page=$page pending=${_rowsPending.length} checkedIn=${_rowsCheckedIn.length} checkedOut=${_rowsCheckedOut.length}');
     });
   }
 
@@ -200,6 +237,7 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
             fontWeight: FontWeight.bold,
           ),
           tabs: const [
+            Tab(text: 'Pending'),
             Tab(text: 'Check-in'),
             Tab(text: 'Checked-out'),
           ],
@@ -243,6 +281,15 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
                       RefreshIndicator(
                         onRefresh: () => _loadPage(1),
                         child: _buildTabList(
+                          _filteredPending,
+                          showCheckout: false,
+                          scrollController: _scrollControllerPending,
+                          isPending: true,
+                        ),
+                      ),
+                      RefreshIndicator(
+                        onRefresh: () => _loadPage(1),
+                        child: _buildTabList(
                           _filteredCheckedIn,
                           showCheckout: true,
                           scrollController: _scrollControllerCheckedIn,
@@ -268,6 +315,7 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     List<_VisitorRow> rows, {
     required bool showCheckout,
     required ScrollController scrollController,
+    bool isPending = false,
   }) {
     final isEmpty = rows.isEmpty;
     final isFiltered = _searchQuery.trim().isNotEmpty;
@@ -275,6 +323,7 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
       return _buildEmpty(
         showCheckout: showCheckout,
         isFiltered: isFiltered,
+        isPending: isPending,
       );
     }
     return ListView.builder(
@@ -300,6 +349,7 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   Widget _buildEmpty({
     required bool showCheckout,
     bool isFiltered = false,
+    bool isPending = false,
   }) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -317,18 +367,22 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
         Text(
           isFiltered
               ? 'No matching visitors'
-              : (showCheckout
-                  ? 'No visitors in Check-in'
-                  : 'No visitors in Checked-out'),
+                  : (isPending
+                    ? 'No pending requests'
+                    : (showCheckout
+                      ? 'No visitors in Check-in'
+                      : 'No visitors in Checked-out')),
           style: Theme.of(context).textTheme.titleLarge,
           textAlign: TextAlign.center,
         ),
         Text(
           isFiltered
-              ? 'Try a different search term.'
-              : (showCheckout
-                  ? 'Visitors who are not yet checked out appear here. Pull down to refresh.'
-                  : 'Checked-out visitors will appear here. Pull down to refresh.'),
+                ? 'Try a different search term.'
+                : (isPending
+                  ? 'Pending requests will appear here. Pull down to refresh.'
+                  : (showCheckout
+                    ? 'Visitors who are not yet checked out appear here. Pull down to refresh.'
+                    : 'Checked-out visitors will appear here. Pull down to refresh.')),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey.shade600,
               ),
@@ -368,11 +422,18 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              v.fullName,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    v.fullName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                _statusLabel(v.status),
+              ],
             ),
             const SizedBox(height: 8),
             _cardRow(Icons.login, 'Check-in: ${_formatTime(v.checkInTime)}',
@@ -402,6 +463,43 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  String _prettyStatus(String raw) {
+    if (raw.isEmpty) return '—';
+    final s = raw.replaceAll('_', ' ');
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  Widget _statusLabel(String raw) {
+    final s = raw.toLowerCase();
+    Color bg;
+    Color textColor;
+    if (s == 'pending' || s == 'requested') {
+      bg = Colors.orange.shade50;
+      textColor = Colors.orange.shade700;
+    } else if (s == 'accepted' || s == 'approved') {
+      bg = Colors.green.shade50;
+      textColor = Colors.green.shade700;
+    } else if (s == 'checked_out') {
+      bg = Colors.grey.shade200;
+      textColor = Colors.grey.shade700;
+    } else {
+      bg = Colors.blue.shade50;
+      textColor = Colors.blue.shade700;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _prettyStatus(raw),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
       ),
     );
   }

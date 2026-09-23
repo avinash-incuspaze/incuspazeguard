@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,7 +28,11 @@ class VisitorService {
   static List<VisitorRequest> parsePendingPageResponse(
     Map<String, dynamic> data,
   ) {
-    final list = data['data'] as List<dynamic>? ?? [];
+
+    final paginationData = data['data'] as Map<String, dynamic>?;
+
+    final list = paginationData?['data'] as List<dynamic>? ?? [];
+  //  final list = data['data'] as List<dynamic>? ?? [];
     return list
         .map(
           (e) =>
@@ -47,7 +52,7 @@ class VisitorService {
       return PendingDropInsPage(items: [], hasMore: false, currentPage: page);
     }
     final path =
-        '${ApiEndpoints.receptionDropInsManual}?status=pending&per_page=$perPage&page=$page';
+        '${ApiEndpoints.receptionDropInsManual}?per_page=$perPage&page=$page';
     final uri = Uri.parse(path);
     try {
       final response = await http.get(
@@ -300,6 +305,61 @@ class VisitorService {
     int page = 1,
     int perPage = 10,
   }) async {
+    // DEBUG: local dummy was used for UI testing. Disable to call real API.
+    const _useLocalDummy = false;
+    if (kDebugMode && _useLocalDummy) {
+      final Map<String, dynamic> dummy = {
+        'data': [
+          {
+            "id": 7,
+            "visitor_type": "drop_in",
+            "purpose_of_visit": "New panel test",
+            "date_of_visit": "2026-08-29T18:30:00.000000Z",
+            "time_of_visit": "23:02:00",
+            "center_id": 2,
+            "company_id": 1,
+            "host": 9,
+            "host_name": "Himanshu",
+            "host_email": "hi************i@incuspaze.com",
+            "host_company_name": "Incuspaze",
+            "visitor_count": 1,
+            "approval_mode": "security_based",
+            "approval_status": "pending",
+            "status": "pending",
+            "created_at": "2026-08-30T17:30:04.000000Z",
+            "updated_at": "2026-08-30T17:30:04.000000Z",
+            "visitors": [
+              {
+                "id": 6,
+                "visit_id": 7,
+                "visitor_profile_id": 6,
+                "visitor_type": "drop_in",
+                "status": "requested",
+                "created_at": "2026-08-30T17:30:04.000000Z",
+                "updated_at": "2026-08-30T17:30:04.000000Z",
+                "profile": {
+                  "id": 6,
+                  "full_name": "Avinash",
+                  "email": "Avinash.tiwari@incuspaze.com",
+                  "mobile_number": "9810252878",
+                  "company_info": "incuspaze",
+                  "image": "visitor_profiles/photos/sample.jpg"
+                }
+              }
+            ],
+            "company": {"id": 1, "company_name": "Incuspaze"},
+            "host_user": {"id": 9, "username": "Himanshu Papnai"}
+          }
+        ],
+        'pagination': {
+          'current_page': 1,
+          'per_page': perPage,
+          'total': 1,
+          'last_page': 1,
+        }
+      };
+      return VisitorsWithVisitResponse.fromJson(dummy);
+    }
     final token = await _getToken();
     if (token == null) return null;
 
