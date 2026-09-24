@@ -206,9 +206,17 @@ class VisitorService {
   }
 
   /// Approve a drop-in with mandatory remark.
-  Future<void> approve(String visitorId, String remark) async {
-    await _patchApproval(visitorId, status: 'approved', remark: remark);
-  }
+  // Future<void> approve(String visitorId, String remark) async {
+  //   await _patchApproval(visitorId, status: 'approved', remark: remark);
+  // }
+
+  Future<bool> approve(String visitorId, String remark) async {
+  return await _patchApproval(
+    visitorId,
+    status: 'approved',
+    remark: remark,
+  );
+}
 
   /// Reject a drop-in with mandatory remark.
   Future<void> reject(String visitorId, String remark) async {
@@ -263,33 +271,45 @@ class VisitorService {
     }
   }
 
-  Future<void> _patchApproval(
-    String visitorId, {
-    required String status,
-    required String remark,
-  }) async {
-    final token = await _getToken();
-    if (token == null) return;
+Future<bool> _patchApproval(
+  String visitorId, {
+  required String status,
+  required String remark,
+}) async {
+  final token = await _getToken();
 
-    final uri = Uri.parse(ApiEndpoints.receptionDropInApproval(visitorId));
-
-    try {
-      await http.patch(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'status': status,
-          'remark': remark,
-        }),
-      );
-    } catch (_) {
-      // Swallow for now; caller can decide how to surface errors if needed.
-    }
+  if (token == null) {
+    return false;
   }
+
+  final uri = Uri.parse(
+    ApiEndpoints.receptionDropInApproval(visitorId),
+  );
+
+  try {
+    final response = await http.patch(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'status': status,
+        'remark': remark,
+      }),
+    );
+
+    debugPrint('Approval response: ${response.body}');
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+    return data['status'] == true;
+  } catch (e) {
+    debugPrint('Approval error: $e');
+    return false;
+  }
+}
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();

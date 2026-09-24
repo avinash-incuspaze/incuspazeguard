@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/visit_with_visitors.dart';
 import '../../services/visitor_service.dart';
 
-/// One row in the list: a visitor that can be checked out, with visit context.
+/// One row in the list: a visitor with visit context.
 class _VisitorRow {
   final VisitWithVisitors visit;
   final VisitorInVisit visitor;
@@ -14,9 +14,13 @@ class _VisitorRow {
 }
 
 class VisitorsListScreen extends StatefulWidget {
-  const VisitorsListScreen({super.key, this.showBackButton = true});
+  const VisitorsListScreen({
+    super.key,
+    this.showBackButton = true,
+  });
 
-  /// When false, hides the back button (e.g. when shown inside main shell nav).
+  /// When false, hides the back button
+  /// (e.g. when shown inside main shell nav).
   final bool showBackButton;
 
   @override
@@ -26,34 +30,64 @@ class VisitorsListScreen extends StatefulWidget {
 class _VisitorsListScreenState extends State<VisitorsListScreen>
     with SingleTickerProviderStateMixin {
   final _visitorService = VisitorService();
+
   final List<_VisitorRow> _rowsCheckedIn = [];
   final List<_VisitorRow> _rowsCheckedOut = [];
   final List<_VisitorRow> _rowsPending = [];
-  final TextEditingController _searchController = TextEditingController();
+
+  final TextEditingController _searchController =
+      TextEditingController();
+
   String _searchQuery = '';
+
   VisitorsPagination? _pagination;
+
   bool _loading = true;
   bool _loadingMore = false;
+
   int _page = 1;
+
   static const int _perPage = 10;
+
   late TabController _tabController;
-  final ScrollController _scrollControllerCheckedIn = ScrollController();
-  final ScrollController _scrollControllerCheckedOut = ScrollController();
-  final ScrollController _scrollControllerPending = ScrollController();
+
+  final ScrollController _scrollControllerCheckedIn =
+      ScrollController();
+
+  final ScrollController _scrollControllerCheckedOut =
+      ScrollController();
+
+  final ScrollController _scrollControllerPending =
+      ScrollController();
+
   static const double _loadMoreScrollThreshold = 200;
 
-  List<_VisitorRow> get _filteredCheckedIn => _filterRows(_rowsCheckedIn);
-  List<_VisitorRow> get _filteredCheckedOut => _filterRows(_rowsCheckedOut);
-  List<_VisitorRow> get _filteredPending => _filterRows(_rowsPending);
+  List<_VisitorRow> get _filteredCheckedIn =>
+      _filterRows(_rowsCheckedIn);
+
+  List<_VisitorRow> get _filteredCheckedOut =>
+      _filterRows(_rowsCheckedOut);
+
+  List<_VisitorRow> get _filteredPending =>
+      _filterRows(_rowsPending);
 
   List<_VisitorRow> _filterRows(List<_VisitorRow> rows) {
-    if (_searchQuery.trim().isEmpty) return rows;
+    if (_searchQuery.trim().isEmpty) {
+      return rows;
+    }
+
     final q = _searchQuery.trim().toLowerCase();
+
     return rows.where((row) {
       final v = row.visitor;
       final visit = row.visit;
-      final checkInStr = _formatTime(v.checkInTime).toLowerCase();
-      final checkOutStr = _formatTime(v.checkOutTime).toLowerCase();
+
+      final checkInStr =
+          _formatTime(v.checkInTime).toLowerCase();
+
+      final checkOutStr =
+          _formatTime(v.checkOutTime).toLowerCase();
+
       return v.fullName.toLowerCase().contains(q) ||
           (visit.hostName?.toLowerCase().contains(q) ?? false) ||
           (visit.companyName?.toLowerCase().contains(q) ?? false) ||
@@ -64,58 +98,112 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   }
 
   static String _displayOptional(String? value) {
-    if (value == null || value.isEmpty) return '—';
-    if (value.length > 60 || value.startsWith('eyJ')) return '—';
+    if (value == null || value.isEmpty) {
+      return '—';
+    }
+
+    if (value.length > 60 || value.startsWith('eyJ')) {
+      return '—';
+    }
+
     return value;
   }
 
   static String _formatTime(DateTime? dt) {
-    if (dt == null) return '—';
+    if (dt == null) {
+      return '—';
+    }
+
     return DateFormat('MMM d, h:mm a').format(dt);
   }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+    );
+
     _loadPage(1);
-    _scrollControllerCheckedIn.addListener(_onScrollCheckedIn);
-    _scrollControllerCheckedOut.addListener(_onScrollCheckedOut);
-    _scrollControllerPending.addListener(_onScrollPending);
+
+    _scrollControllerCheckedIn.addListener(
+      _onScrollCheckedIn,
+    );
+
+    _scrollControllerCheckedOut.addListener(
+      _onScrollCheckedOut,
+    );
+
+    _scrollControllerPending.addListener(
+      _onScrollPending,
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollControllerCheckedIn.removeListener(_onScrollCheckedIn);
-    _scrollControllerCheckedOut.removeListener(_onScrollCheckedOut);
-    _scrollControllerPending.removeListener(_onScrollPending);
+
+    _scrollControllerCheckedIn.removeListener(
+      _onScrollCheckedIn,
+    );
+
+    _scrollControllerCheckedOut.removeListener(
+      _onScrollCheckedOut,
+    );
+
+    _scrollControllerPending.removeListener(
+      _onScrollPending,
+    );
+
     _scrollControllerCheckedIn.dispose();
     _scrollControllerCheckedOut.dispose();
     _scrollControllerPending.dispose();
+
     _tabController.dispose();
+
     super.dispose();
   }
 
-  void _onScrollPending() => _onScroll(_scrollControllerPending);
+  void _onScrollPending() {
+    _onScroll(_scrollControllerPending);
+  }
 
-  void _onScrollCheckedIn() => _onScroll(_scrollControllerCheckedIn);
-  void _onScrollCheckedOut() => _onScroll(_scrollControllerCheckedOut);
+  void _onScrollCheckedIn() {
+    _onScroll(_scrollControllerCheckedIn);
+  }
+
+  void _onScrollCheckedOut() {
+    _onScroll(_scrollControllerCheckedOut);
+  }
 
   void _onScroll(ScrollController controller) {
-    if (!_hasMore || _loadingMore) return;
+    if (!_hasMore || _loadingMore) {
+      return;
+    }
+
     final position = controller.position;
-    if (position.maxScrollExtent <= 0) return;
-    if (position.pixels >= position.maxScrollExtent - _loadMoreScrollThreshold) {
+
+    if (position.maxScrollExtent <= 0) {
+      return;
+    }
+
+    if (position.pixels >=
+        position.maxScrollExtent - _loadMoreScrollThreshold) {
       _loadPage(_page + 1);
     }
   }
 
   Future<void> _loadPage(int page) async {
     if (page == 1) {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+      });
     } else {
-      setState(() => _loadingMore = true);
+      setState(() {
+        _loadingMore = true;
+      });
     }
 
     final result = await _visitorService.getVisitorsWithVisit(
@@ -123,60 +211,128 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
       perPage: _perPage,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _loading = false;
       _loadingMore = false;
-      if (result == null) return;
+
+      if (result == null) {
+        return;
+      }
+
       _pagination = result.pagination;
       _page = page;
+
       if (page == 1) {
         _rowsCheckedIn.clear();
         _rowsCheckedOut.clear();
         _rowsPending.clear();
       }
+
       for (final visit in result.data) {
         for (final visitor in visit.visitors) {
-          final row = _VisitorRow(visit, visitor);
-          // Normalize status and detect check-in via timestamps when possible.
-          final s = (visitor.status ?? '').toLowerCase();
+          final row = _VisitorRow(
+            visit,
+            visitor,
+          );
 
-          final hasCheckIn = visitor.checkInTime != null;
-          final hasCheckOut = visitor.checkOutTime != null;
+          final s =
+              (visitor.status ?? '').toLowerCase();
 
-          // Pending tab: only show explicit pre-check-in requests
-            // Include 'approved' and 'accepted' so pre-check-in approvals remain in Pending
-            final pendingStatuses = {'pending', 'requested', 'accepted', 'approved'};
+          final hasCheckIn =
+              visitor.checkInTime != null;
+
+          final hasCheckOut =
+              visitor.checkOutTime != null;
+
+          // Pending visitors waiting for approval.
+          //
+          // IMPORTANT:
+          // "approved" is intentionally NOT included here.
+          // Once approved, the visitor should leave Pending.
+          final pendingStatuses = {
+            'pending',
+            'requested',
+            'accepted',
+          };
+
           if (pendingStatuses.contains(s)) {
             _rowsPending.add(row);
             continue;
           }
 
+          // Checked-out visitors.
           if (s == 'checked_out' || hasCheckOut) {
             _rowsCheckedOut.add(row);
             continue;
           }
 
-          // Check-in tab: only visitors that are checked-in (status or timestamp)
+          // Checked-in visitors.
           if (s == 'checked_in' || hasCheckIn) {
             _rowsCheckedIn.add(row);
             continue;
           }
-
-          // // Checked-out tab: only visitors that are checked-out (status or timestamp)
-          // if (s == 'checked_out' || hasCheckOut) {
-          //   _rowsCheckedOut.add(row);
-          //   continue;
-          // }
-
-          // All other statuses (e.g., accepted/approved/unknown) are intentionally
-          // not added to any tab to match the strict tab rules requested.
         }
       }
 
-      debugPrint('VisitorsList: page=$page pending=${_rowsPending.length} checkedIn=${_rowsCheckedIn.length} checkedOut=${_rowsCheckedOut.length}');
+      debugPrint(
+        'VisitorsList: '
+        'page=$page '
+        'pending=${_rowsPending.length} '
+        'checkedIn=${_rowsCheckedIn.length} '
+        'checkedOut=${_rowsCheckedOut.length}',
+      );
     });
   }
+
+  // ----------------------------------------------------------
+  // APPROVE VISITOR
+  // ----------------------------------------------------------
+
+Future<void> _onApprove(_VisitorRow row) async {
+  final remark = await _showRemarkDialog(
+    title: 'Approve visitor',
+    actionLabel: 'Approve',
+  );
+
+  if (remark == null) {
+    return;
+  }
+
+  final success = await _visitorService.approve(
+    row.visitor.visitorId.toString(),
+    remark,
+  );
+
+  if (!mounted) {
+    return;
+  }
+
+  if (!success) {
+    Get.snackbar(
+      'Approval failed',
+      'Approval request not found or already processed.',
+    );
+    return;
+  }
+
+  await _loadPage(1);
+
+  if (!mounted) {
+    return;
+  }
+
+  Get.snackbar(
+    'Approved',
+    '${row.visitor.fullName} has been approved',
+  );
+}
+  // ----------------------------------------------------------
+  // CHECKOUT VISITOR
+  // ----------------------------------------------------------
 
   Future<void> _onCheckout(_VisitorRow row) async {
     final ok = await Get.dialog<bool>(
@@ -187,30 +343,172 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(result: false),
+            onPressed: () => Get.back(
+              result: false,
+            ),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Get.back(result: true),
+            onPressed: () => Get.back(
+              result: true,
+            ),
             child: const Text('Check out'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
+
+    if (ok != true) {
+      return;
+    }
 
     final success = await _visitorService.checkout(
       visitId: row.visit.visitId,
       visitorId: row.visitor.visitorId,
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     if (success) {
-      Get.snackbar('Done', '${row.visitor.fullName} checked out');
-      _loadPage(1);
+      Get.snackbar(
+        'Done',
+        '${row.visitor.fullName} checked out',
+      );
+
+      await _loadPage(1);
     } else {
-      Get.snackbar('Error', 'Checkout failed. Try again.');
+      Get.snackbar(
+        'Error',
+        'Checkout failed. Try again.',
+      );
     }
   }
+
+  // ----------------------------------------------------------
+  // APPROVAL REMARK DIALOG
+  // ----------------------------------------------------------
+
+  // Future<String?> _showRemarkDialog({
+  //   required String title,
+  //   required String actionLabel,
+  // }) async {
+  //   final controller = TextEditingController();
+
+  //   String? errorText;
+
+  //   final result = await Get.dialog<String>(
+  //     StatefulBuilder(
+  //       builder: (context, setState) {
+  //         return AlertDialog(
+  //           title: Text(title),
+  //           content: TextField(
+  //             controller: controller,
+  //             decoration: InputDecoration(
+  //               labelText: 'Remark',
+  //               hintText: 'Enter at least 10 characters',
+  //               errorText: errorText,
+  //             ),
+  //             maxLines: 3,
+  //             autofocus: true,
+  //           ),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () => Get.back(
+  //                 result: null,
+  //               ),
+  //               child: const Text('Cancel'),
+  //             ),
+  //             FilledButton(
+  //               onPressed: () {
+  //                 final t = controller.text.trim();
+
+  //                 if (t.length < 10) {
+  //                   setState(() {
+  //                     errorText =
+  //                         'Remark must be at least 10 characters';
+  //                   });
+  //                   return;
+  //                 }
+
+  //                 Get.back(
+  //                   result: t,
+  //                 );
+  //               },
+  //               child: Text(actionLabel),
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     ),
+  //   );
+
+  //   controller.dispose();
+
+  //   return result;
+  // }
+
+  Future<String?> _showRemarkDialog({
+  required String title,
+  required String actionLabel,
+}) async {
+  final controller = TextEditingController();
+
+  final result = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      String? errorText;
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: 'Remark',
+                hintText: 'Enter at least 10 characters',
+                errorText: errorText,
+              ),
+              maxLines: 3,
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final remark = controller.text.trim();
+
+                  if (remark.length < 10) {
+                    setState(() {
+                      errorText =
+                          'Remark must be at least 10 characters';
+                    });
+                    return;
+                  }
+
+                  Navigator.of(dialogContext).pop(remark);
+                },
+                child: Text(actionLabel),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  controller.dispose();
+
+  return result;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -219,11 +517,14 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
         title: const Text('Visitors'),
         leading: widget.showBackButton
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(
+                  Icons.arrow_back,
+                ),
                 onPressed: () => Get.back(),
               )
             : null,
-        automaticallyImplyLeading: widget.showBackButton,
+        automaticallyImplyLeading:
+            widget.showBackButton,
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -232,7 +533,8 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
             fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
-          unselectedLabelStyle: const TextStyle(
+          unselectedLabelStyle:
+              const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
@@ -246,61 +548,104 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              8,
+            ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by name, host, company, centre...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
+                hintText:
+                    'Search by name, host, company, centre...',
+                prefixIcon:
+                    const Icon(Icons.search),
+                suffixIcon:
+                    _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding:
+                    const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
               ),
-              onChanged: (value) => setState(() => _searchQuery = value),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
             ),
           ),
+
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  )
                 : TabBarView(
                     controller: _tabController,
                     children: [
+                      // --------------------------------------------------
+                      // PENDING
+                      // --------------------------------------------------
+
                       RefreshIndicator(
-                        onRefresh: () => _loadPage(1),
+                        onRefresh: () =>
+                            _loadPage(1),
                         child: _buildTabList(
                           _filteredPending,
                           showCheckout: false,
-                          scrollController: _scrollControllerPending,
+                          scrollController:
+                              _scrollControllerPending,
                           isPending: true,
                         ),
                       ),
+
+                      // --------------------------------------------------
+                      // CHECK-IN
+                      // --------------------------------------------------
+
                       RefreshIndicator(
-                        onRefresh: () => _loadPage(1),
+                        onRefresh: () =>
+                            _loadPage(1),
                         child: _buildTabList(
                           _filteredCheckedIn,
                           showCheckout: true,
-                          scrollController: _scrollControllerCheckedIn,
+                          scrollController:
+                              _scrollControllerCheckedIn,
                         ),
                       ),
+
+                      // --------------------------------------------------
+                      // CHECKED-OUT
+                      // --------------------------------------------------
+
                       RefreshIndicator(
-                        onRefresh: () => _loadPage(1),
+                        onRefresh: () =>
+                            _loadPage(1),
                         child: _buildTabList(
                           _filteredCheckedOut,
                           showCheckout: false,
-                          scrollController: _scrollControllerCheckedOut,
+                          scrollController:
+                              _scrollControllerCheckedOut,
                         ),
                       ),
                     ],
@@ -318,7 +663,9 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     bool isPending = false,
   }) {
     final isEmpty = rows.isEmpty;
-    final isFiltered = _searchQuery.trim().isNotEmpty;
+    final isFiltered =
+        _searchQuery.trim().isNotEmpty;
+
     if (isEmpty) {
       return _buildEmpty(
         showCheckout: showCheckout,
@@ -326,17 +673,30 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
         isPending: isPending,
       );
     }
+
     return ListView.builder(
       controller: scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      physics:
+          const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
       itemCount: rows.length +
-          ((_hasMore || _loadingMore) && !isFiltered ? 1 : 0),
+          ((_hasMore || _loadingMore) &&
+                  !isFiltered
+              ? 1
+              : 0),
       itemBuilder: (context, index) {
         if (index >= rows.length) {
           return _buildLoadMore();
         }
-        return _buildCard(rows[index], showCheckout: showCheckout);
+
+        return _buildCard(
+          rows[index],
+          showCheckout: showCheckout,
+          isPending: isPending,
+        );
       },
     );
   }
@@ -352,40 +712,51 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     bool isPending = false,
   }) {
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics:
+          const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 48),
+
         Icon(
           isFiltered
               ? Icons.search_off
-              : (showCheckout ? Icons.person_off_outlined : Icons.history),
+              : (isPending
+                  ? Icons.person_search_outlined
+                  : (showCheckout
+                      ? Icons.person_off_outlined
+                      : Icons.history)),
           size: 64,
           color: Colors.grey.shade400,
         ),
+
         const SizedBox(height: 16),
+
         Text(
           isFiltered
               ? 'No matching visitors'
-                  : (isPending
-                    ? 'No pending requests'
-                    : (showCheckout
+              : (isPending
+                  ? 'No pending requests'
+                  : (showCheckout
                       ? 'No visitors in Check-in'
                       : 'No visitors in Checked-out')),
-          style: Theme.of(context).textTheme.titleLarge,
+          style:
+              Theme.of(context).textTheme.titleLarge,
           textAlign: TextAlign.center,
         ),
+
         Text(
           isFiltered
-                ? 'Try a different search term.'
-                : (isPending
+              ? 'Try a different search term.'
+              : (isPending
                   ? 'Pending requests will appear here. Pull down to refresh.'
                   : (showCheckout
-                    ? 'Visitors who are not yet checked out appear here. Pull down to refresh.'
-                    : 'Checked-out visitors will appear here. Pull down to refresh.')),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                      ? 'Visitors who are not yet checked out appear here. Pull down to refresh.'
+                      : 'Checked-out visitors will appear here. Pull down to refresh.')),
+          style:
+              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -394,7 +765,9 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
 
   Widget _buildLoadMore() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.symmetric(
+        vertical: 24,
+      ),
       child: SizedBox(
         height: 56,
         child: Center(
@@ -402,7 +775,10 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
               ? const SizedBox(
                   width: 32,
                   height: 32,
-                  child: CircularProgressIndicator(strokeWidth: 3),
+                  child:
+                      CircularProgressIndicator(
+                    strokeWidth: 3,
+                  ),
                 )
               : const SizedBox.shrink(),
         ),
@@ -410,54 +786,124 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     );
   }
 
-  Widget _buildCard(_VisitorRow row, {required bool showCheckout}) {
+  Widget _buildCard(
+    _VisitorRow row, {
+    required bool showCheckout,
+    bool isPending = false,
+  }) {
     final v = row.visitor;
     final visit = row.visit;
     final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin:
+          const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
                   child: Text(
                     v.fullName,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: theme
+                        .textTheme.titleMedium
+                        ?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+
                 _statusLabel(v.status),
               ],
             ),
+
             const SizedBox(height: 8),
-            _cardRow(Icons.login, 'Check-in: ${_formatTime(v.checkInTime)}',
-                theme),
+
+            _cardRow(
+              Icons.login,
+              'Check-in: ${_formatTime(v.checkInTime)}',
+              theme,
+            ),
+
             const SizedBox(height: 2),
-            _cardRow(Icons.logout, 'Check-out: ${_formatTime(v.checkOutTime)}',
-                theme),
+
+            _cardRow(
+              Icons.logout,
+              'Check-out: ${_formatTime(v.checkOutTime)}',
+              theme,
+            ),
+
             const SizedBox(height: 4),
-            _cardRow(Icons.person_outline, 'Host: ${_displayOptional(visit.hostName)}',
-                theme),
+
+            _cardRow(
+              Icons.person_outline,
+              'Host: ${_displayOptional(visit.hostName)}',
+              theme,
+            ),
+
             const SizedBox(height: 2),
-            _cardRow(Icons.business_outlined, 'Company: ${_displayOptional(visit.companyName)}',
-                theme),
+
+            _cardRow(
+              Icons.business_outlined,
+              'Company: ${_displayOptional(visit.companyName)}',
+              theme,
+            ),
+
             const SizedBox(height: 2),
-            _cardRow(Icons.location_on_outlined, 'Centre: ${visit.centerName}',
-                theme),
-            if (showCheckout && row.visitor.canCheckout) ...[
+
+            _cardRow(
+              Icons.location_on_outlined,
+              'Centre: ${visit.centerName}',
+              theme,
+            ),
+
+            // ----------------------------------------------------------
+            // PENDING → APPROVE
+            // ----------------------------------------------------------
+
+            if (isPending) ...[
               const SizedBox(height: 12),
+
               Align(
-                alignment: Alignment.centerRight,
+                alignment:
+                    Alignment.centerRight,
                 child: FilledButton.icon(
-                  onPressed: () => _onCheckout(row),
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Check out'),
+                  onPressed: () =>
+                      _onApprove(row),
+                  icon: const Icon(
+                    Icons.check,
+                    size: 18,
+                  ),
+                  label:
+                      const Text('Approve'),
+                ),
+              ),
+            ]
+
+            // ----------------------------------------------------------
+            // CHECK-IN → CHECK OUT
+            // ----------------------------------------------------------
+
+            else if (showCheckout &&
+                row.visitor.canCheckout) ...[
+              const SizedBox(height: 12),
+
+              Align(
+                alignment:
+                    Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      _onCheckout(row),
+                  icon: const Icon(
+                    Icons.logout,
+                    size: 18,
+                  ),
+                  label:
+                      const Text('Check out'),
                 ),
               ),
             ],
@@ -468,19 +914,31 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
   }
 
   String _prettyStatus(String raw) {
-    if (raw.isEmpty) return '—';
-    final s = raw.replaceAll('_', ' ');
-    return s[0].toUpperCase() + s.substring(1);
+    if (raw.isEmpty) {
+      return '—';
+    }
+
+    final s = raw.replaceAll(
+      '_',
+      ' ',
+    );
+
+    return s[0].toUpperCase() +
+        s.substring(1);
   }
 
   Widget _statusLabel(String raw) {
     final s = raw.toLowerCase();
+
     Color bg;
     Color textColor;
-    if (s == 'pending' || s == 'requested') {
+
+    if (s == 'pending' ||
+        s == 'requested') {
       bg = Colors.orange.shade50;
       textColor = Colors.orange.shade700;
-    } else if (s == 'accepted' || s == 'approved') {
+    } else if (s == 'accepted' ||
+        s == 'approved') {
       bg = Colors.green.shade50;
       textColor = Colors.green.shade700;
     } else if (s == 'checked_out') {
@@ -492,28 +950,49 @@ class _VisitorsListScreenState extends State<VisitorsListScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius:
+            BorderRadius.circular(999),
       ),
       child: Text(
         _prettyStatus(raw),
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
       ),
     );
   }
 
-  Widget _cardRow(IconData icon, String text, ThemeData theme) {
+  Widget _cardRow(
+    IconData icon,
+    String text,
+    ThemeData theme,
+  ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey),
+        Icon(
+          icon,
+          size: 18,
+          color: Colors.grey,
+        ),
+
         const SizedBox(width: 8),
+
         Expanded(
           child: Text(
             text,
-            style: theme.textTheme.bodySmall,
+            style:
+                theme.textTheme.bodySmall,
           ),
         ),
       ],
